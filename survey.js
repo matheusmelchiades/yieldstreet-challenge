@@ -13,6 +13,14 @@ function inject({ tag, scope = 'head', ...properties }) {
     return e
 }
 
+// PARAMS
+//// SET API_URL IF HAS BY TAG PARAM
+const API_URL =
+    document.currentScript.dataset.apiUrl ??
+    'https://624b90f844505084bc52c8a7.mockapi.io/api/surveys'
+
+const apiFactoryResponse = document.currentScript.dataset.apiFactoryResponse ? eval(document.currentScript.dataset.apiFactoryResponse) : (response) => response;
+
 // DEFAULT VALUES
 const DEFAULT_FORM_VALUES = {
     name: '',
@@ -23,11 +31,21 @@ const DEFAULT_FORM_VALUES = {
     favoriteColors: [],
 }
 
+const SUBMIT_STATUS = {
+    processing: 'processing',
+    submitted: 'submitted',
+}
+
 const DEFAULT_CACHE = {
     form: DEFAULT_FORM_VALUES,
     step: 0,
     errors: {},
-    status: 'processing',
+    status: SUBMIT_STATUS.processing,
+}
+
+const SURVEY_RESULT = {
+    success: 'Your response has been recorded, thanks your time!',
+    error: 'we had a problem recording your answers, please try again!',
 }
 
 const ERRORS = {
@@ -123,7 +141,7 @@ function Main() {
     React.useEffect(() => {
         const cache = cacheService.load()
 
-        if (cache.status === 'submitted') setOpen(false)
+        if (cache.status === SUBMIT_STATUS.submitted) setOpen(false)
     }, [])
 
     const handleOnClose = () => {
@@ -165,11 +183,24 @@ function Main() {
 
 //// FORM
 function SurveryForm({ onFinish }) {
-    const { Box, Stepper, Step, StepLabel, Button, Typography } = MaterialUI
+    const {
+        Box,
+        Stepper,
+        Step,
+        StepLabel,
+        Button,
+        Typography,
+        CircularProgress,
+    } = MaterialUI
 
     const [activeStep, setActiveStep] = React.useState(0)
     const [formValues, setFormValues] = React.useState(DEFAULT_FORM_VALUES)
     const [errors, setErrors] = React.useState({})
+    const [loading, setLoading] = React.useState(false)
+    const [surveyResult, setSurveyResult] = React.useState('')
+    const [submitStatus, setSubmitStatus] = React.useState(
+        SUBMIT_STATUS.processing
+    )
 
     React.useEffect(() => {
         const cache = cacheService.load()
@@ -178,8 +209,14 @@ function SurveryForm({ onFinish }) {
         setActiveStep(cache.step)
         setErrors(cache.errors)
 
+        if (cache.status) setSubmitStatus(cache.status)
+
         validateByStep(cache.form, cache.step)
     }, [])
+
+    React.useEffect(() => {
+        saveSubmitStatusCache(submitStatus)
+    }, [submitStatus])
 
     const handleNext = () => {
         const valid = validateByStep(formValues, activeStep)
@@ -201,10 +238,44 @@ function SurveryForm({ onFinish }) {
         }
     }
 
-    const handleSubmit = (event) => {
+    const requestSurvey = async () => {
+        try {
+            const payload = await fetch(API_URL, {
+                method: 'POST',
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formValues),
+            })
+                .then((response) => response.json())
+                .then(apiFactoryResponse)
+
+            if (payload.status !== 'success') return 'error'
+
+            return payload.status
+        } catch (err) {
+            console.log(err.message)
+            return 'error'
+        }
+    }
+
+    const handleSubmit = async (event) => {
         event.preventDefault()
-        saveSubmitStatusCache()
-        onFinish()
+        setLoading(true)
+
+        const result = await requestSurvey()
+
+        setSurveyResult(result)
+        setLoading(false)
+
+        if (result === 'success') {
+            setSubmitStatus(SUBMIT_STATUS.submitted)
+
+            setTimeout(() => {
+                return onFinish()
+            }, 3000)
+        }
     }
 
     const handleUpdateForm = (field, value) => {
@@ -249,8 +320,10 @@ function SurveryForm({ onFinish }) {
         cacheService.save({ errors })
     }
 
-    const saveSubmitStatusCache = (submitted = true) => {
-        cacheService.save({ status: submitted ? 'submitted' : 'processing' })
+    const saveSubmitStatusCache = (status) => {
+        if (!Object.values(SUBMIT_STATUS).includes(status)) return
+
+        cacheService.save({ status })
     }
 
     const validateByStep = (form, step) => {
@@ -287,88 +360,167 @@ function SurveryForm({ onFinish }) {
         return true
     }
 
-    return React.createElement(
-        Box,
-        { component: 'form', onSubmit: handleSubmit },
-        [
-            React.createElement(
-                Typography,
-                { component: 'h1', variant: 'h4', align: 'center' },
-                'Survey'
-            ),
+    return React.createElement(React.Fragment, {}, [
+        !loading &&
+        surveyResult === 'success' &&
+        React.createElement(
+            Box,
+            {
+                sx: {
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                    align: 'center',
+                },
+            },
+            [
+                React.createElement(
+                    Box,
+                    {
+                        mb: 2,
+                        sx: {
+                            width: '100%',
+                            display: 'flex',
+                            justifyContent: 'center',
+                            align: 'center',
+                        },
+                    },
+                    React.createElement('img', {
+                        width: 100,
+                        height: 100,
+                        src: 'https://www.clipartmax.com/png/full/179-1795386_patient-success-success-icon-png.png',
+                    })
+                ),
+                React.createElement(
+                    Typography,
+                    { variant: 'h4', textAlign: 'center' },
+                    SURVEY_RESULT[surveyResult]
+                ),
+            ]
+        ),
 
-            React.createElement(
-                Stepper,
-                { activeStep, sx: { pt: 3, pb: 5 } },
-                steps.map((label, index) =>
-                    React.createElement(
-                        Step,
-                        { key: label.toString() },
+        loading &&
+        React.createElement(
+            Box,
+            {
+                sx: {
+                    display: 'flex',
+                    justifyContent: 'center',
+                    align: 'center',
+                },
+            },
+            React.createElement(CircularProgress, {})
+        ),
+
+        !loading &&
+        surveyResult !== 'success' &&
+        React.createElement(
+            Box,
+            { component: 'form', onSubmit: handleSubmit },
+            [
+                React.createElement(
+                    Typography,
+                    { component: 'h1', variant: 'h4', align: 'center' },
+                    'Survey'
+                ),
+
+                !loading &&
+                surveyResult === 'error' &&
+                React.createElement(
+                    Box,
+                    {
+                        mt: 2,
+                        sx: {
+                            display: 'flex',
+                            justifyContent: 'center',
+                            align: 'center',
+                        },
+                    },
+                    [
                         React.createElement(
-                            StepLabel,
-                            {
-                                error: Object.values(
-                                    errors[index] || {}
-                                ).filter((e) => !!e).length,
-                            },
-                            label
+                            Typography,
+                            { sx: { color: 'red' } },
+                            SURVEY_RESULT[surveyResult]
+                        ),
+                    ]
+                ),
+
+                React.createElement(
+                    Stepper,
+                    { activeStep, sx: { pt: 3, pb: 5 } },
+                    steps.map((label, index) =>
+                        React.createElement(
+                            Step,
+                            { key: label.toString() },
+                            React.createElement(
+                                StepLabel,
+                                {
+                                    error: Object.values(
+                                        errors[index] || {}
+                                    ).filter((e) => !!e).length,
+                                },
+                                label
+                            )
                         )
                     )
-                )
-            ),
+                ),
 
-            React.createElement(getStepContent(activeStep), {
-                form: formValues,
-                errors: errors[activeStep],
-                handleUpdateForm,
-                reportError,
-            }),
+                React.createElement(getStepContent(activeStep), {
+                    form: formValues,
+                    errors: errors[activeStep],
+                    handleUpdateForm,
+                    reportError,
+                }),
 
-            React.createElement(
-                Box,
-                { sx: { display: 'flex', justifyContent: 'flex-end' } },
-                [
-                    activeStep !== 0
-                        ? React.createElement(
-                              Button,
-                              { onClick: handleBack, sx: { mt: 3, ml: 1 } },
-                              'Previous'
-                          )
-                        : null,
+                React.createElement(
+                    Box,
+                    { sx: { display: 'flex', justifyContent: 'flex-end' } },
+                    [
+                        activeStep !== 0
+                            ? React.createElement(
+                                Button,
+                                {
+                                    onClick: handleBack,
+                                    sx: { mt: 3, ml: 1 },
+                                },
+                                'Previous'
+                            )
+                            : null,
 
-                    activeStep < steps.length - 1
-                        ? React.createElement(
-                              Button,
-                              {
-                                  variant: 'contained',
-                                  onClick: handleNext,
-                                  sx: { mt: 3, ml: 1 },
-                                  disabled: Object.values(
-                                      errors[activeStep] || {}
-                                  ).filter((e) => !!e).length,
-                              },
-                              'Next'
-                          )
-                        : null,
+                        activeStep < steps.length - 1
+                            ? React.createElement(
+                                Button,
+                                {
+                                    variant: 'contained',
+                                    onClick: handleNext,
+                                    sx: { mt: 3, ml: 1 },
+                                    disabled: Object.values(
+                                        errors[activeStep] || {}
+                                    ).filter((e) => !!e).length,
+                                },
+                                'Next'
+                            )
+                            : null,
 
-                    activeStep === steps.length - 1
-                        ? React.createElement(
-                              Button,
-                              {
-                                  variant: 'contained',
-                                  type: 'submit',
-                                  sx: { mt: 3, ml: 1 },
-                                  disabled: Object.values(
-                                      errors[activeStep] || {}
-                                  ).filter((e) => !!e).length,
-                              },
-                              'Submit'
-                          )
-                        : null,
-                ]
-            ),
-        ]
-    )
+                        activeStep === steps.length - 1
+                            ? React.createElement(
+                                Button,
+                                {
+                                    variant: 'contained',
+                                    type: 'submit',
+                                    sx: { mt: 3, ml: 1 },
+                                    disabled: Object.values(
+                                        errors[activeStep] || {}
+                                    ).filter((e) => !!e).length,
+                                },
+                                'Submit'
+                            )
+                            : null,
+                    ]
+                ),
+            ]
+        ),
+    ])
 }
 
 ////// Step1
@@ -516,11 +668,11 @@ function DetailsForm({ form, handleUpdateForm, errors = {}, reportError }) {
                         ),
 
                         errors['age'] &&
-                            React.createElement(
-                                FormHelperText,
-                                {},
-                                errors['age']
-                            ),
+                        React.createElement(
+                            FormHelperText,
+                            {},
+                            errors['age']
+                        ),
                     ]
                 )
             ),
@@ -562,11 +714,11 @@ function DetailsForm({ form, handleUpdateForm, errors = {}, reportError }) {
                         ),
 
                         errors['gender'] &&
-                            React.createElement(
-                                FormHelperText,
-                                {},
-                                errors['gender']
-                            ),
+                        React.createElement(
+                            FormHelperText,
+                            {},
+                            errors['gender']
+                        ),
                     ]
                 ),
             ]),
@@ -713,11 +865,11 @@ function FavoritesForm({ form, handleUpdateForm, errors = {}, reportError }) {
                         ),
 
                         errors['favoriteColors'] &&
-                            React.createElement(
-                                FormHelperText,
-                                {},
-                                errors['favoriteColors']
-                            ),
+                        React.createElement(
+                            FormHelperText,
+                            {},
+                            errors['favoriteColors']
+                        ),
                     ]
                 )
             ),
@@ -795,7 +947,7 @@ function Summary({ form }) {
                 maplabelsAndFieldsForm.map(({ category, fields }, index) =>
                     React.createElement(React.Fragment, {}, [
                         index > 0 &&
-                            React.createElement(Divider, { sx: { mt: 2 } }),
+                        React.createElement(Divider, { sx: { mt: 2 } }),
 
                         React.createElement(
                             Typography,
@@ -824,23 +976,23 @@ function Summary({ form }) {
 
                                     ((form && field && form[field]) ||
                                         renderBy) &&
+                                    React.createElement(
+                                        Grid,
+                                        { item: true, xs: 6 },
                                         React.createElement(
-                                            Grid,
-                                            { item: true, xs: 6 },
-                                            React.createElement(
-                                                Typography,
-                                                {
-                                                    gutterBottom: true,
-                                                    sx: {
-                                                        wordWrap: 'break-word',
-                                                        ...sx,
-                                                    },
+                                            Typography,
+                                            {
+                                                gutterBottom: true,
+                                                sx: {
+                                                    wordWrap: 'break-word',
+                                                    ...sx,
                                                 },
-                                                renderBy
-                                                    ? renderBy(form[field])
-                                                    : form[field]
-                                            )
-                                        ),
+                                            },
+                                            renderBy
+                                                ? renderBy(form[field])
+                                                : form[field]
+                                        )
+                                    ),
                                 ])
                             )
                         ),
@@ -881,32 +1033,32 @@ const dependencies = {
         'https://unpkg.com/@mui/material@latest/umd/material-ui.production.min.js',
 }
 
-;(async () => {
-    // It goes block injection libraries and script if user already submitted
-    if (cacheService.load().status === 'submitted') return
+    ; (async () => {
+        // // It goes block injection libraries and script if user already submitted
+        if (cacheService.load().status === SUBMIT_STATUS.submitted) return
 
-    inject({
-        tag: 'script',
-        scope: 'head',
-        src: dependencies.react,
-        crossorigin: true,
-    })
+        inject({
+            tag: 'script',
+            scope: 'head',
+            src: dependencies.react,
+            crossorigin: true,
+        })
 
-    inject({
-        tag: 'script',
-        scope: 'head',
-        src: dependencies.reactDom,
-        crossorigin: true,
-    })
+        inject({
+            tag: 'script',
+            scope: 'head',
+            src: dependencies.reactDom,
+            crossorigin: true,
+        })
 
-    inject({
-        tag: 'link',
-        scope: 'head',
-        rel: 'stylesheet',
-        href: dependencies.font,
-    })
+        inject({
+            tag: 'link',
+            scope: 'head',
+            rel: 'stylesheet',
+            href: dependencies.font,
+        })
 
-    inject({ tag: 'script', scope: 'head', src: dependencies.materialUI })
+        inject({ tag: 'script', scope: 'head', src: dependencies.materialUI })
 
-    setTimeout(setup, 2000) // 2 seconds
-})()
+        setTimeout(setup, 2000) // 2 seconds
+    })()

@@ -17,8 +17,37 @@ You can use any web application and possible to use two ways
 
 -   [CDN link](https://cdn.jsdelivr.net/gh/matheusmelchiades/yieldstreet-challenge@main/survey.min.js)
 
+```HTML
+<script
+    type="text/javascript"
+    src="https://cdn.jsdelivr.net/gh/matheusmelchiades/yieldstreet-challenge@main/survey.min.js"></script>
 ```
-<script src="https://cdn.jsdelivr.net/gh/matheusmelchiades/yieldstreet-challenge@main/survey.min.js" type="text/javascript"></script>
+
+If you want to use a custom request, you must pass some params in script tag.
+
+```HTML
+<script
+    type="text/javascript"
+    data-api-url="<CUSTOM_API_URL>"
+    src="https://cdn.jsdelivr.net/gh/matheusmelchiades/yieldstreet-challenge@main/survey.min.js"></script>
+```
+
+The one requirement to handle request function expect is a simple object JSON, then flow of survey will it work well.
+
+```JSON
+{
+    "status": "success"
+}
+```
+
+or you can custom the handle request function too. Example
+
+```HTML
+<script
+    type="text/javascript"
+    data-api-url="<CUSTOM_API_URL>"
+    data-api-factory-response="(response) => ({ status: response.updated })"
+    src="https://cdn.jsdelivr.net/gh/matheusmelchiades/yieldstreet-challenge@main/survey.min.js"></script>
 ```
 
 -   [Download](xx) JS FILE ​
