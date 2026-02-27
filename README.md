@@ -1,65 +1,55 @@
 # Yieldstreet Survey Challenge
 
-The challenge is focus to test skills in web development with React framework. To see all requirements, follow the doc about [Challenge](./docs/challenge.pdf).
+An embeddable survey popup widget built with **React without JSX** — distributed as a single script tag via CDN. This technical challenge demonstrates deep understanding of React internals by using `React.createElement` directly instead of JSX syntax.
 
-The choose of development to doesn't use JSX, was to improve more skills in react and of course to simple funny.
+## Tech Stack
 
-# Libraries
+- **React** (without JSX) — using `React.createElement` directly
+- - **ReactDOM** — for DOM rendering
+  - - **Material UI** — component library for polished UI
+    - - **jsDelivr CDN** — for script distribution
+     
+      - ## Features
+     
+      - - **Drop-in Integration** — embed with a single `<script>` tag
+        - - **Custom API Endpoint** — configure via `data-api-url` attribute
+          - - **Custom Response Handler** — define response parsing via `data-api-factory-response`
+            - - **Zero Build Step** — works directly in any web page
+             
+              - ## Usage
+             
+              - ### Basic Integration
+             
+              - ```html
+                <script
+                  type="text/javascript"
+                  src="https://cdn.jsdelivr.net/gh/matheusmelchiades/yieldstreet-challenge@main/survey.min.js">
+                </script>
+                ```
 
--   [React](https://reactjs.org/) Framework
--   [ReactDOM]() Library required by React
--   [MaterialUI](https://mui.com) LibUI to build pretty components.
--   [Font](https://fonts.google.com/) Font by Google
+                ### With Custom API
 
-# Usage
+                ```html
+                <script
+                  type="text/javascript"
+                  data-api-url="<YOUR_API_URL>"
+                  src="https://cdn.jsdelivr.net/gh/matheusmelchiades/yieldstreet-challenge@main/survey.min.js">
+                </script>
+                ```
 
-You can use any web application and possible to use two ways
+                ### With Custom Response Handler
 
--   [CDN link](https://cdn.jsdelivr.net/gh/matheusmelchiades/yieldstreet-challenge@main/survey.min.js)
+                ```html
+                <script
+                  type="text/javascript"
+                  data-api-url="<YOUR_API_URL>"
+                  data-api-factory-response="(response) => ({ status: response.updated })"
+                  src="https://cdn.jsdelivr.net/gh/matheusmelchiades/yieldstreet-challenge@main/survey.min.js">
+                </script>
+                ```
 
-```HTML
-<script
-    type="text/javascript"
-    src="https://cdn.jsdelivr.net/gh/matheusmelchiades/yieldstreet-challenge@main/survey.min.js"></script>
-```
+                The API handler expects a JSON response with `{ "status": "success" }` format. Use the factory response attribute to transform custom API responses.
 
-If you want to use a custom request, you must pass some params in script tag.
+                ## Why No JSX?
 
-```HTML
-<script
-    type="text/javascript"
-    data-api-url="<CUSTOM_API_URL>"
-    src="https://cdn.jsdelivr.net/gh/matheusmelchiades/yieldstreet-challenge@main/survey.min.js"></script>
-```
-
-The one requirement to handle request function expect is a simple object JSON, then flow of survey will it work well.
-
-```JSON
-{
-    "status": "success"
-}
-```
-
-or you can custom the handle request function too. Example
-
-```HTML
-<script
-    type="text/javascript"
-    data-api-url="<CUSTOM_API_URL>"
-    data-api-factory-response="(response) => ({ status: response.updated })"
-    src="https://cdn.jsdelivr.net/gh/matheusmelchiades/yieldstreet-challenge@main/survey.min.js"></script>
-```
-
--   [Download](xx) JS FILE ​
-
-## Result
-
-This a preview of popup in work.
-
-![result](./docs/medias/result.gif)
-
-## References
-
--   [without JSX](https://reactjs.org/docs/react-without-jsx.html#gatsby-focus-wrapper) about more how to use Framework without these facilities
--   [Babel Converter](https://babeljs.io/repl/#?browsers=defaults%2C%20not%20ie%2011%2C%20not%20ie_mob%2011&build=&builtIns=false&corejs=3.21&spec=false&loose=false&code_lz=GYVwdgxgLglg9mABACwKYBt1wBQEpEDeAUIogE6pQhlIA8AJjAG4B8AEhlogO5xnr0AhLQD0jVgG4iAXyJA&debug=false&forceAllTransforms=false&shippedProposals=false&circleciRepo=&evaluate=false&fileSize=false&timeTravel=false&sourceType=module&lineWrap=true&presets=react&prettier=false&targets=&version=7.17.8&externalPlugins=&assumptions=%7B%7D) That's a real time playground, how react transform JSX in js.
--   [jsDelivr](https://www.jsdelivr.com/?docs=gh) Used to can get raw content to anywhere.
+                This project intentionally avoids JSX to demonstrate how React works under the hood. Every component is built using `React.createElement()`, showing a deeper understanding of the framework beyond typical usage. See [React Without JSX](https://reactjs.org/docs/react-without-jsx.html) for more context.
